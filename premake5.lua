@@ -44,8 +44,7 @@ project "gmsv_gcrash"
 	configuration "Release"
 		architecture "x86"
 		optimize "Speed"
-		if staticruntime then staticruntime "On"
-		else flags "StaticRuntime" end
+		staticruntime "On"
 		if _ACTION == "gmake2" then
 			linkoptions "-l:garrysmod/bin/lua_shared.so"
 		end
@@ -56,8 +55,7 @@ project "gmsv_gcrash"
 	configuration "Release64"
 		architecture "x86_64"
 		optimize "Speed"
-		if staticruntime then staticruntime "On"
-		else flags "StaticRuntime" end
+		staticruntime "On"
 		if _ACTION == "gmake2" then
 			linkoptions "-l:bin/linux64/lua_shared.so"
 		end
