@@ -16,8 +16,7 @@ lua_State* L;
 int luahandler;
 FILE* f;
 
-int doprint(lua_State* state)
-{
+int doprint(lua_State* state) {
     if (f) {
         fprintf(f, "%s", luaL_checkstring(state, 1));
         fflush(f);
@@ -25,23 +24,20 @@ int doprint(lua_State* state)
     return 0;
 }
 
-void print_handler(lua_State* state)
-{
+void print_handler(lua_State* state) {
     if (!luahandler or !f) return;
     fprintf(f, "\nLua Crash Handler:\n\n");
     lua_rawgeti(state, LUA_REGISTRYINDEX, luahandler);
     lua_pushlightuserdata(state, (void*) f);
     lua_pushcclosure(state, doprint, 1);
-    if (lua_pcall(state, 1, 0, 0))
-    {
+    if (lua_pcall(state, 1, 0, 0)) {
         fprintf(f, "[[ERROR IN CRASH HANDLER: %s]]", lua_tostring(state, -1));
     }
     fprintf(f, "\n");
     fflush(f);
 }
 
-void print_traceback(lua_State* state)
-{
+void print_traceback(lua_State* state) {
     if (!f) return;
     fprintf(f, "\nMain Lua stack:\n");
     int n = -1;
@@ -79,23 +75,19 @@ int dumpstate(lua_State* state) {
     return 0;
 }
 
-void handlesigsegv(int signum, siginfo_t* info, void* context)
-{
+void handlesigsegv(int signum, siginfo_t* info, void* context) {
     dumpstate(L);
     abort();
 }
 
-int crash(lua_State* state)
-{
+int crash(lua_State* state) {
     *((int*) NULL) = 0;
     return 0;
 }
 
-int sethandler(lua_State* state)
-{
+int sethandler(lua_State* state) {
     if (luahandler) luaL_unref(state, LUA_REGISTRYINDEX, luahandler);
-    if (lua_isfunction(state, 1))
-    {
+    if (lua_isfunction(state, 1)) {
         lua_pushvalue(state, 1);
         luahandler = luaL_ref(state, LUA_REGISTRYINDEX);
     }
@@ -113,21 +105,18 @@ struct watchdog_update {
 
 watchdog_update* upd = nullptr;
 
-int watchdogupdate(lua_State* state)
-{
+int watchdogupdate(lua_State* state) {
     std::lock_guard<std::mutex> lck(upd->mtx);
     upd->last_call = std::chrono::system_clock::now();
     return 0;
 }
 
-void watchdog_hookfn(lua_State* state, lua_Debug* ar)
-{
+void watchdog_hookfn(lua_State* state, lua_Debug* ar) {
     dumpstate(L);
     abort();
 }
 
-void watchdog_threadfn()
-{
+void watchdog_threadfn() {
     std::unique_lock<std::mutex> lck(upd->mtx);
     bool panicked = false;
     while (true) {
@@ -152,8 +141,7 @@ void watchdog_threadfn()
 }
 
 int watchdog_ref;
-int startwatchdog(lua_State* state)
-{
+int startwatchdog(lua_State* state) {
     if (watchdog_ref) {
         lua_rawgeti(state, LUA_REGISTRYINDEX, watchdog_ref);
         std::lock_guard<std::mutex> lck(upd->mtx);
@@ -190,10 +178,8 @@ int startwatchdog(lua_State* state)
 }
 
 
-int stopwatchdog(lua_State* state)
-{
-    if (watchdog_ref)
-    {
+int stopwatchdog(lua_State* state) {
+    if (watchdog_ref) {
         lua_rawgeti(state, LUA_REGISTRYINDEX, watchdog_ref);
         std::lock_guard<std::mutex> lck(upd->mtx);
         upd->sleeping = true;
@@ -202,10 +188,8 @@ int stopwatchdog(lua_State* state)
     return 0;
 }
 
-int destroywatchdog(lua_State* state)
-{
-    if (watchdog_ref)
-    {
+int destroywatchdog(lua_State* state) {
+    if (watchdog_ref) {
         lua_rawgeti(state, LUA_REGISTRYINDEX, watchdog_ref);
         luaL_unref(state, LUA_REGISTRYINDEX, watchdog_ref);
         std::lock_guard<std::mutex> lck(upd->mtx);
@@ -216,8 +200,7 @@ int destroywatchdog(lua_State* state)
     return 0;
 }
 
-DLL_EXPORT int gmod13_open(lua_State* state)
-{
+DLL_EXPORT int gmod13_open(lua_State* state) {
     printf("\n-------------------------\n>> GCrash v0.4 - VRP <<\n-------------------------\n");
     mkdir("garrysmod/gcrash", 0755);
 
@@ -230,8 +213,7 @@ DLL_EXPORT int gmod13_open(lua_State* state)
     upd->L = state;
     upd->sleeping = false;
 
-    lua_newtable(state);
-    {
+    lua_newtable(state); {
         luaD_setcfunction(state, "dumpstate", dumpstate);
         luaD_setcfunction(state, "sethandler", sethandler);
         luaD_setcfunction(state, "startwatchdog", startwatchdog);
@@ -249,7 +231,6 @@ DLL_EXPORT int gmod13_open(lua_State* state)
     return 0;
 }
 
-DLL_EXPORT int gmod13_close(lua_State* state)
-{
+DLL_EXPORT int gmod13_close(lua_State* state) {
     return destroywatchdog(state);
 }
