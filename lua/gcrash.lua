@@ -1,3 +1,4 @@
+if CLIENT then return end
 require "gcrash"
 
 local enable_watchdog = true
@@ -24,32 +25,31 @@ local enable_watchdog = true
     Destroy the watchdog, this is done automatically on server stop.
 ]]
 
-gcrash.sethandler( function( write )
-	local function printline( s, ... ) write( string.format( tostring( s or "" ) .. "\n", ... ) ) end
+gcrash.sethandler(function(write)
+	local function printline(s, ...) write(string.format(tostring(s or "") .. "\n", ...)) end
 
 	local i = 2 -- Only start at frame 2, we don't need the locals of this function
-	local dbg = debug.getinfo( i )
+	local dbg = debug.getinfo(i)
 	while dbg do
-		printline( "Frame #%d:", i - 2 )
+		printline("Frame #%d:", i - 2)
 
 		for j = 1, 255 do
-			local n, v = debug.getlocal( i, j )
+			local n, v = debug.getlocal(i, j)
 			if not n then break end
-			printline( "  %s = %s", tostring( n ), tostring( v ) )
+			printline("  %s = %s", tostring(n), tostring(v))
 		end
 
-		printline( "" )
+		printline("")
 		i = i + 1
-		dbg = debug.getinfo( i )
+		dbg = debug.getinfo(i)
 	end
 
-end )
+end)
 
 gcrash.crash = nil -- You can comment this out if you want to use it (to crash your server?)
 
 if enable_watchdog then
-	timer.Simple(30, function()
-		gcrash.startwatchdog()
-		print( "Starting gcrash watchdog..." )
-	end)
+	RunConsoleCommand("sv_hibernate_think", 1) -- We need it to run the watchdog updater while the server is empty
+	gcrash.startwatchdog(30)
+	print(">> GCrash Watchdog Started")
 end
