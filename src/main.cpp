@@ -67,7 +67,7 @@ int dumpstate(lua_State* state, const char* message = "** Segmentation fault occ
             now.tm_sec);
     f = fopen(buffer, "w");
     if (f) {
-		fprintf(f, "%s\n", message);
+        fprintf(f, "%s\n", message);
         print_traceback(state);
         print_handler(state);
         fclose(f);
@@ -76,13 +76,13 @@ int dumpstate(lua_State* state, const char* message = "** Segmentation fault occ
 }
 
 int dumpstate_caller(lua_State* state) {
-	printf("GCrash >> Dump stack called\n");
+    printf("GCrash >> Dump stack called\n");
     dumpstate(state, "** Dump stack call **\n");
     return 0;
 }
 
 void handlesigsegv(int signum, siginfo_t* info, void* context) {
-	printf("GCrash >> Segmentation fault detected\n");
+    printf("GCrash >> Segmentation fault detected\n");
     dumpstate(L, "** Segmentation fault occurred **\n");
     abort();
 }
@@ -138,7 +138,7 @@ void watchdog_threadfn() {
             upd->last_call = std::chrono::system_clock::now();
         } else if (upd->last_call + upd->period < std::chrono::system_clock::now()) {
             if (panicked) break;
-			printf("GCrash >> Server freeze / hang / infinite loop detected\n");
+            printf("GCrash >> Server freeze / hang / infinite loop detected\n");
             lua_sethook(upd->L, watchdog_hookfn, 7, 0);
             upd->last_call = std::chrono::system_clock::now();
             panicked = true;
@@ -150,7 +150,7 @@ void watchdog_threadfn() {
 
 int watchdog_ref;
 int startwatchdog(lua_State* state) {
-	printf("GCrash >> Watchdog started\n");
+    printf("GCrash >> Watchdog started\n");
     if (watchdog_ref) {
         lua_rawgeti(state, LUA_REGISTRYINDEX, watchdog_ref);
         std::lock_guard<std::mutex> lck(upd->mtx);
@@ -161,7 +161,7 @@ int startwatchdog(lua_State* state) {
 
     int time = lua_tointeger(state, 1);
     if ( time < 10 )
-		time = 30;
+        time = 30;
     
     upd->period = std::chrono::seconds(time);
     upd->last_call = std::chrono::system_clock::now();
@@ -169,16 +169,16 @@ int startwatchdog(lua_State* state) {
     upd->sleeping = false;
     upd->shutdown.lock();
 
-	watchdog_ref = luaL_ref( state, LUA_REGISTRYINDEX );
+    watchdog_ref = luaL_ref( state, LUA_REGISTRYINDEX );
     
-	lua_getglobal( state, "timer" );
-	lua_getfield( state, -1, "Create" );
-		lua_pushstring( state, "gcrash.watchdog" );
-		lua_pushinteger( state, time / 3 );
-		lua_pushinteger( state, 0 );
-		lua_pushcclosure(state, watchdogupdate, 0);
-		lua_call( state, 4, 0 );
-	lua_pop( state, 1 );
+    lua_getglobal( state, "timer" );
+    lua_getfield( state, -1, "Create" );
+        lua_pushstring( state, "gcrash.watchdog" );
+        lua_pushinteger( state, time / 3 );
+        lua_pushinteger( state, 0 );
+        lua_pushcclosure(state, watchdogupdate, 0);
+        lua_call( state, 4, 0 );
+    lua_pop( state, 1 );
 
     // Start the watchdog thread
     std::thread watchdog{ watchdog_threadfn };
@@ -188,7 +188,7 @@ int startwatchdog(lua_State* state) {
 
 
 int stopwatchdog(lua_State* state) {
-	printf("GCrash >> Watchdog stopped\n");
+    printf("GCrash >> Watchdog stopped\n");
     if (watchdog_ref) {
         lua_rawgeti(state, LUA_REGISTRYINDEX, watchdog_ref);
         std::lock_guard<std::mutex> lck(upd->mtx);
@@ -199,7 +199,7 @@ int stopwatchdog(lua_State* state) {
 }
 
 int destroywatchdog(lua_State* state) {
-	printf("GCrash >> Watchdog destroyed\n");
+    printf("GCrash >> Watchdog destroyed\n");
     if (watchdog_ref) {
         lua_rawgeti(state, LUA_REGISTRYINDEX, watchdog_ref);
         luaL_unref(state, LUA_REGISTRYINDEX, watchdog_ref);
