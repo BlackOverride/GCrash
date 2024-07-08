@@ -12,7 +12,7 @@ project "gmsv_gcrash"
 	if _ACTION == "gmake2" then
 		postbuildcommands "{MOVE} %{cfg.targetdir}/lib%{prj.name}%{cfg.targetsuffix}.so %{cfg.targetdir}/%{prj.name}%{cfg.targetsuffix}.dll"
 	else
-		links "lua_shared"
+		links "lua_shared_srv"
 	end
 
 	files
@@ -25,7 +25,7 @@ project "gmsv_gcrash"
 		architecture "x86"
 		optimize "Debug"
 		if _ACTION == "gmake2" then
-			linkoptions "-l:garrysmod/bin/lua_shared.so"
+			linkoptions "-l:garrysmod/bin/lua_shared_srv.so"
 		end
 		if os.istarget( "windows" ) then targetsuffix "_win32" end
 		if os.istarget( "macosx" )  then targetsuffix "_osx"   end
@@ -35,7 +35,7 @@ project "gmsv_gcrash"
 		architecture "x86_64"
 		optimize "Debug"
 		if _ACTION == "gmake2" then
-			linkoptions "-l:bin/linux64/lua_shared.so"
+			linkoptions "-l:bin/linux64/lua_shared_srv.so"
 		end
 		if os.istarget( "windows" ) then targetsuffix "_win64" end
 		if os.istarget( "macosx" )  then targetsuffix "_osx64"   end
@@ -46,7 +46,7 @@ project "gmsv_gcrash"
 		optimize "Speed"
 		staticruntime "On"
 		if _ACTION == "gmake2" then
-			linkoptions "-l:garrysmod/bin/lua_shared.so"
+			linkoptions "-l:garrysmod/bin/lua_shared_srv.so"
 		end
 		if os.istarget( "windows" ) then targetsuffix "_win32" end
 		if os.istarget( "macosx" )  then targetsuffix "_osx"   end
@@ -57,7 +57,7 @@ project "gmsv_gcrash"
 		optimize "Speed"
 		staticruntime "On"
 		if _ACTION == "gmake2" then
-			linkoptions "-l:bin/linux64/lua_shared.so"
+			linkoptions "-l:bin/linux64/lua_shared_srv.so"
 		end
 		if os.istarget( "windows" ) then targetsuffix "_win64" end
 		if os.istarget( "macosx" )  then targetsuffix "_osx64"   end
