@@ -50,6 +50,8 @@ gcrash.crash = nil -- You can comment this out if you want to use it (to crash y
 
 if enable_watchdog then
 	RunConsoleCommand("sv_hibernate_think", 1) -- We need it to run the watchdog updater while the server is empty
-	gcrash.startwatchdog(30)
+	timer.Simple(120, function() -- We let the watchdog wait before launching for long time loading servers
+		gcrash.startwatchdog(45)
+	end)
 	print(">> GCrash Watchdog Started")
 end
