@@ -54,7 +54,7 @@ void print_traceback(lua_State* state) {
     fflush(f);
 }
 
-int dumpstate(lua_State* state) {
+int dumpstate(lua_State* state, const char* message = "** Segmentation fault occurred **\n") {
     char buffer[64];
     time_t t = time(NULL);
     struct tm& now = *localtime(&t);
@@ -67,7 +67,7 @@ int dumpstate(lua_State* state) {
             now.tm_sec);
     f = fopen(buffer, "w");
     if (f) {
-        fprintf(f, "**Segmentation fault occurred**\n");
+		fprintf(f, "%s\n", message);
         print_traceback(state);
         print_handler(state);
         fclose(f);
@@ -75,8 +75,15 @@ int dumpstate(lua_State* state) {
     return 0;
 }
 
+int dumpstate_caller(lua_State* state) {
+	printf("GCrash >> Dump stack called\n");
+    dumpstate(state, "** Dump stack call **\n");
+    return 0;
+}
+
 void handlesigsegv(int signum, siginfo_t* info, void* context) {
-    dumpstate(L);
+	printf("GCrash >> Segmentation fault detected\n");
+    dumpstate(L, "** Segmentation fault occurred **\n");
     abort();
 }
 
@@ -112,7 +119,7 @@ int watchdogupdate(lua_State* state) {
 }
 
 void watchdog_hookfn(lua_State* state, lua_Debug* ar) {
-    dumpstate(L);
+    dumpstate(L, "** Server freeze / hang / infinite loop **");
     abort();
 }
 
@@ -131,17 +138,19 @@ void watchdog_threadfn() {
             upd->last_call = std::chrono::system_clock::now();
         } else if (upd->last_call + upd->period < std::chrono::system_clock::now()) {
             if (panicked) break;
+			printf("GCrash >> Server freeze / hang / infinite loop detected\n");
             lua_sethook(upd->L, watchdog_hookfn, 7, 0);
             upd->last_call = std::chrono::system_clock::now();
             panicked = true;
         }
     }
-    dumpstate(upd->L);
+    dumpstate(upd->L, "** Server freeze / hang / infinite loop **");
     abort();
 }
 
 int watchdog_ref;
 int startwatchdog(lua_State* state) {
+	printf("GCrash >> Watchdog started\n");
     if (watchdog_ref) {
         lua_rawgeti(state, LUA_REGISTRYINDEX, watchdog_ref);
         std::lock_guard<std::mutex> lck(upd->mtx);
@@ -179,6 +188,7 @@ int startwatchdog(lua_State* state) {
 
 
 int stopwatchdog(lua_State* state) {
+	printf("GCrash >> Watchdog stopped\n");
     if (watchdog_ref) {
         lua_rawgeti(state, LUA_REGISTRYINDEX, watchdog_ref);
         std::lock_guard<std::mutex> lck(upd->mtx);
@@ -189,6 +199,7 @@ int stopwatchdog(lua_State* state) {
 }
 
 int destroywatchdog(lua_State* state) {
+	printf("GCrash >> Watchdog destroyed\n");
     if (watchdog_ref) {
         lua_rawgeti(state, LUA_REGISTRYINDEX, watchdog_ref);
         luaL_unref(state, LUA_REGISTRYINDEX, watchdog_ref);
@@ -214,7 +225,7 @@ DLL_EXPORT int gmod13_open(lua_State* state) {
     upd->sleeping = false;
 
     lua_newtable(state); {
-        luaD_setcfunction(state, "dumpstate", dumpstate);
+        luaD_setcfunction(state, "dumpstate", dumpstate_caller);
         luaD_setcfunction(state, "sethandler", sethandler);
         luaD_setcfunction(state, "startwatchdog", startwatchdog);
         luaD_setcfunction(state, "stopwatchdog", stopwatchdog);
