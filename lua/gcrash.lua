@@ -53,5 +53,4 @@ if enable_watchdog then
 	timer.Simple(120, function() -- We let the watchdog wait before launching for long time loading servers
 		gcrash.startwatchdog(45)
 	end)
-	print(">> GCrash Watchdog Started")
 end
