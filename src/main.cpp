@@ -14,6 +14,7 @@
 
 lua_State* L;
 int luahandler;
+int frozen = 0;
 FILE* f;
 
 int doprint(lua_State* state) {
@@ -82,8 +83,10 @@ int dumpstate_caller(lua_State* state) {
 }
 
 void handlesigsegv(int signum, siginfo_t* info, void* context) {
-    printf("GCrash >> Segmentation fault detected\n");
-    dumpstate(L, "** Segmentation fault occurred **\n");
+    if (!frozen) { 
+        printf("GCrash >> Segmentation fault detected\n");
+        dumpstate(L, "** Segmentation fault occurred **\n");
+    }
     abort();
 }
 
@@ -107,7 +110,6 @@ struct watchdog_update {
     std::chrono::system_clock::time_point last_call;
     std::chrono::system_clock::duration period;
     bool sleeping;
-    lua_State* L;
 };
 
 watchdog_update* upd = nullptr;
@@ -118,14 +120,8 @@ int watchdogupdate(lua_State* state) {
     return 0;
 }
 
-void watchdog_hookfn(lua_State* state, lua_Debug* ar) {
-    dumpstate(L, "** Server freeze / hang / infinite loop **");
-    abort();
-}
-
 void watchdog_threadfn() {
     std::unique_lock<std::mutex> lck(upd->mtx);
-    bool panicked = false;
     while (true) {
         auto dowait = upd->last_call + upd->period - std::chrono::system_clock::now();
         lck.unlock();
@@ -137,15 +133,13 @@ void watchdog_threadfn() {
         if (upd->sleeping) {
             upd->last_call = std::chrono::system_clock::now();
         } else if (upd->last_call + upd->period < std::chrono::system_clock::now()) {
-            if (panicked) break;
             printf("GCrash >> Server freeze / hang / infinite loop detected\n");
-            lua_sethook(upd->L, watchdog_hookfn, 7, 0);
             upd->last_call = std::chrono::system_clock::now();
-            panicked = true;
+            frozen = 1;
+            dumpstate(L, "** Server freeze / hang / infinite loop **");
+            abort();
         }
     }
-    dumpstate(upd->L, "** Server freeze / hang / infinite loop **");
-    abort();
 }
 
 int watchdog_ref;
@@ -165,7 +159,6 @@ int startwatchdog(lua_State* state) {
     
     upd->period = std::chrono::seconds(time);
     upd->last_call = std::chrono::system_clock::now();
-    upd->L = state;
     upd->sleeping = false;
     upd->shutdown.lock();
 
@@ -221,7 +214,6 @@ DLL_EXPORT int gmod13_open(lua_State* state) {
     
     upd = new watchdog_update{};
     upd->last_call = std::chrono::system_clock::now();
-    upd->L = state;
     upd->sleeping = false;
 
     lua_newtable(state); {
