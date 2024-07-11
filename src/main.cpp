@@ -1,58 +1,54 @@
 #include <chrono>
-#include <iomanip>
 #include <mutex>
 #include <thread>
-#include <sstream>
-#include <string>
 #include <csignal>
 #include <cstdio>
 #include <ctime>
-#include <unistd.h>
+#include <fstream>
 #include <sys/stat.h>
 #include "lua_headers.h"
 
 // Globals
 lua_State* L = nullptr;
-FILE* f = nullptr;
+std::ofstream f;
 int luahandler = 0;
 int frozen = 0;
 
 int doprint(lua_State* state) {
-    if (f) {
-        fprintf(f, "%s", luaL_checkstring(state, 1));
-        fflush(f);
+    if (f.is_open()) {
+        f << luaL_checkstring(state, 1);
+        f.flush();
     }
     return 0;
 }
 
 void print_handler(lua_State* state) {
-    if (!luahandler || !f) return;
-    fprintf(f, "\nLua Crash Handler:\n\n");
+    if (!luahandler || !f.is_open()) return;
+    f << "\nLua Crash Handler:\n\n";
     lua_rawgeti(state, LUA_REGISTRYINDEX, luahandler);
-    lua_pushlightuserdata(state, (void*) f);
+    lua_pushlightuserdata(state, (void*) &f);
     lua_pushcclosure(state, doprint, 1);
     if (lua_pcall(state, 1, 0, 0))
-        fprintf(f, "[[ERROR IN CRASH HANDLER: %s]]", lua_tostring(state, -1));
-    fprintf(f, "\n");
-    fflush(f);
+        f << "[[ERROR IN CRASH HANDLER: " << lua_tostring(state, -1) << "]]";
+    f << "\n";
+    f.flush();
 }
 
 void print_traceback(lua_State* state) {
-    if (!f) return;
-    fprintf(f, "\nMain Lua stack:\n");
+    if (!f.is_open()) return;
+    f << "\nMain Lua stack:\n";
     lua_Debug sar;
     int n = 0;
     while (lua_getstack(state, n, &sar)) {
         lua_getinfo(state, "Sln", &sar);
         if (*(sar.what) == 'C') {
-            fprintf(f, "#%d\t%s in %s()\n", n, sar.short_src, sar.name);
+            f << "#" << n << "\t" << sar.short_src << " in " << sar.name << "()\n";
         } else {
-            fprintf(f, "#%d\t%s:%d in %s %s() <%d-%d>\n", n, sar.short_src, sar.currentline, *(sar.namewhat) ? sar.namewhat : "anonymous",
-                    sar.name ? sar.name : "function", sar.linedefined, sar.lastlinedefined);
+            f << "#" << n << "\t" << sar.short_src << ":" << sar.currentline << " in " << (sar.namewhat ? sar.namewhat : "anonymous") << " " << (sar.name ? sar.name : "function") << " <" << sar.linedefined << "-" << sar.lastlinedefined << ">\n";
         }
         n++;
     }
-    fflush(f);
+    f.flush();
 }
 
 int dumpstate(lua_State* state, const char* message = "** Segmentation fault occurred **\n") {
@@ -63,13 +59,12 @@ int dumpstate(lua_State* state, const char* message = "** Segmentation fault occ
              now.tm_year + 1900, now.tm_mon + 1, now.tm_mday,
              now.tm_hour, now.tm_min, now.tm_sec);
 
-    f = fopen(buffer, "w");
-    if (f) {
-        fprintf(f, "%s\n", message);
+    f.open(buffer, std::ios::out);
+    if (f.is_open()) {
+        f << message << "\n";
         print_traceback(state);
         print_handler(state);
-        fclose(f);
-        f = nullptr;
+        f.close();
     }
     return 0;
 }
