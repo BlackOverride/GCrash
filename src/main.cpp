@@ -44,7 +44,8 @@ void print_traceback(lua_State* state) {
         if (*(sar.what) == 'C')
             f << "#" << n << "\t" << sar.short_src << " in " << sar.name << "()\n";
         else
-            f << "#" << n << "\t" << sar.short_src << ":" << sar.currentline << " in " << (sar.namewhat ? sar.namewhat : "anonymous") << " " << (sar.name ? sar.name : "function") << " <" << sar.linedefined << "-" << sar.lastlinedefined << ">\n";
+            f << "#" << n << "\t" << sar.short_src << ":" << sar.currentline << " in " << (sar.namewhat && *(sar.namewhat) ? sar.namewhat : "anonymous") << " "
+              << (sar.name ? sar.name : "function") << " <" << sar.linedefined << "-" << sar.lastlinedefined << ">\n";
     }
     f.flush();
 }
@@ -81,10 +82,7 @@ void handlesigsegv(int signum, siginfo_t* info, void* context) {
     std::abort();
 }
 
-int crash(lua_State* state) {
-    *((int*) NULL) = 0;
-    return 0;
-}
+int crash(lua_State* state) { *((int*) NULL) = 0; return 0; }
 
 int sethandler(lua_State* state) {
     if (luahandler) luaL_unref(state, LUA_REGISTRYINDEX, luahandler);
