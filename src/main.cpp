@@ -38,22 +38,20 @@ void print_traceback(lua_State* state) {
     if (!f.is_open()) return;
     f << "\nMain Lua stack:\n";
     lua_Debug sar;
-    int n = 0;
-    while (lua_getstack(state, n, &sar)) {
+    int n = -1;
+    while (lua_getstack(state, ++n, &sar)) {
         lua_getinfo(state, "Sln", &sar);
-        if (*(sar.what) == 'C') {
+        if (*(sar.what) == 'C')
             f << "#" << n << "\t" << sar.short_src << " in " << sar.name << "()\n";
-        } else {
+        else
             f << "#" << n << "\t" << sar.short_src << ":" << sar.currentline << " in " << (sar.namewhat ? sar.namewhat : "anonymous") << " " << (sar.name ? sar.name : "function") << " <" << sar.linedefined << "-" << sar.lastlinedefined << ">\n";
-        }
-        n++;
     }
     f.flush();
 }
 
 int dumpstate(lua_State* state, const char* message = "** Segmentation fault occurred **\n") {
     char buffer[64];
-    time_t t = time(nullptr);
+    time_t t = time(NULL);
     struct tm now = *localtime(&t);
     snprintf(buffer, sizeof(buffer), "garrysmod/gcrash/luadump-%04d%02d%02d_%02d%02d%02d.txt",
              now.tm_year + 1900, now.tm_mon + 1, now.tm_mday,
@@ -84,7 +82,7 @@ void handlesigsegv(int signum, siginfo_t* info, void* context) {
 }
 
 int crash(lua_State* state) {
-    *((int*) nullptr) = 0;
+    *((int*) NULL) = 0;
     return 0;
 }
 
@@ -221,7 +219,7 @@ extern "C" {
         struct sigaction action;
         action.sa_sigaction = &handlesigsegv;
         action.sa_flags = SA_SIGINFO;
-        sigaction(SIGSEGV, &action, nullptr);
+        sigaction(SIGSEGV, &action, NULL);
 
         return 0;
     }
