@@ -9,10 +9,10 @@ project "gmsv_gcrash"
 	libdirs      "libs/"
 	targetdir    "build"
 
-	if _ACTION == "gmake2" then
+	if _ACTION == "gmake" then
 		postbuildcommands "{MOVE} %{cfg.targetdir}/lib%{prj.name}%{cfg.targetsuffix}.so %{cfg.targetdir}/%{prj.name}%{cfg.targetsuffix}.dll"
 	else
-		links "lua_shared_srv"
+		links "lua_shared"
 	end
 
 	files
@@ -21,43 +21,43 @@ project "gmsv_gcrash"
 		"include/**.*"
 	}
 
-	configuration "Debug"
+	filter "configurations:Debug"
 		architecture "x86"
 		optimize "Debug"
-		if _ACTION == "gmake2" then
+		if _ACTION == "gmake" then
 			linkoptions "-l:garrysmod/bin/lua_shared_srv.so"
 		end
 		if os.istarget( "windows" ) then targetsuffix "_win32" end
 		if os.istarget( "macosx" )  then targetsuffix "_osx"   end
 		if os.istarget( "linux" )   then targetsuffix "_linux" end
 
-	configuration "Debug64"
+	filter "configurations:Debug64"
 		architecture "x86_64"
 		optimize "Debug"
-		if _ACTION == "gmake2" then
-			linkoptions "-l:bin/linux64/lua_shared_srv.so"
+		if _ACTION == "gmake" then
+			linkoptions "-l:bin/linux64/lua_shared.so"
 		end
 		if os.istarget( "windows" ) then targetsuffix "_win64" end
 		if os.istarget( "macosx" )  then targetsuffix "_osx64"   end
 		if os.istarget( "linux" )   then targetsuffix "_linux64" end
 
-	configuration "Release"
+	filter "configurations:Release"
 		architecture "x86"
 		optimize "Speed"
 		staticruntime "On"
-		if _ACTION == "gmake2" then
+		if _ACTION == "gmake" then
 			linkoptions "-l:garrysmod/bin/lua_shared_srv.so"
 		end
 		if os.istarget( "windows" ) then targetsuffix "_win32" end
 		if os.istarget( "macosx" )  then targetsuffix "_osx"   end
 		if os.istarget( "linux" )   then targetsuffix "_linux" end
 	
-	configuration "Release64"
+	filter "configurations:Release64"
 		architecture "x86_64"
 		optimize "Speed"
 		staticruntime "On"
-		if _ACTION == "gmake2" then
-			linkoptions "-l:bin/linux64/lua_shared_srv.so"
+		if _ACTION == "gmake" then
+			linkoptions "-l:bin/linux64/lua_shared.so"
 		end
 		if os.istarget( "windows" ) then targetsuffix "_win64" end
 		if os.istarget( "macosx" )  then targetsuffix "_osx64"   end
