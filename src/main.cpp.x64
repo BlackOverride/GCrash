@@ -1,0 +1,137 @@
+#include <chrono>
+#include <mutex>
+#include <thread>
+#include <cstdio>
+#include "lua_headers.h"
+
+// Globals
+lua_State* L = nullptr;
+
+struct watchdog_update {
+    std::mutex mtx;
+    std::timed_mutex shutdown;
+    std::chrono::system_clock::time_point last_call;
+    std::chrono::system_clock::duration period;
+    bool sleeping;
+};
+
+watchdog_update* upd = nullptr;
+
+int watchdogupdate(lua_State* state) {
+    std::lock_guard<std::mutex> lck(upd->mtx);
+    upd->last_call = std::chrono::system_clock::now();
+    return 0;
+}
+
+void watchdog_threadfn() {
+    std::unique_lock<std::mutex> lck(upd->mtx);
+    while (true) {
+        auto dowait = upd->last_call + upd->period - std::chrono::system_clock::now();
+        lck.unlock();
+        if (upd->shutdown.try_lock_for(dowait)) {
+            upd->shutdown.unlock();
+            return;
+        }
+        lck.lock();
+        if (upd->sleeping) {
+            upd->last_call = std::chrono::system_clock::now();
+        } else if (upd->last_call + upd->period < std::chrono::system_clock::now()) {
+            printf("GCrash >> Server freeze / hang / infinite loop detected\n");
+            *((int*) NULL) = 0;  // This will cause a segmentation fault, effectively crashing the game
+        }
+    }
+}
+
+int watchdog_ref = 0;
+
+int startwatchdog(lua_State* state) {
+    printf("GCrash >> Watchdog started\n");
+    if (watchdog_ref) {
+        lua_rawgeti(state, LUA_REGISTRYINDEX, watchdog_ref);
+        std::lock_guard<std::mutex> lck(upd->mtx);
+        upd->sleeping = false;
+        lua_pop(state, 1);
+        return 0;
+    }
+
+    int time = lua_tointeger(state, 1);
+    if (time < 10) time = 30;
+
+    upd->period = std::chrono::seconds(time);
+    upd->last_call = std::chrono::system_clock::now();
+    upd->sleeping = false;
+    upd->shutdown.lock();
+
+    watchdog_ref = luaL_ref(state, LUA_REGISTRYINDEX);
+
+    lua_getglobal(state, "timer");
+    lua_getfield(state, -1, "Create");
+    lua_pushstring(state, "gcrash.watchdog");
+    lua_pushinteger(state, time / 3);
+    lua_pushinteger(state, 0);
+    lua_pushcclosure(state, watchdogupdate, 0);
+    lua_call(state, 4, 0);
+    lua_pop(state, 1);
+
+    // Start the watchdog thread
+    std::thread watchdog{ watchdog_threadfn };
+    watchdog.detach();
+    return 0;
+}
+
+int stopwatchdog(lua_State* state) {
+    printf("GCrash >> Watchdog stopped\n");
+    if (watchdog_ref) {
+        lua_rawgeti(state, LUA_REGISTRYINDEX, watchdog_ref);
+        std::lock_guard<std::mutex> lck(upd->mtx);
+        upd->sleeping = true;
+        lua_pop(state, 1);
+    }
+    return 0;
+}
+
+int destroywatchdog(lua_State* state) {
+    printf("GCrash >> Watchdog destroyed\n");
+    if (watchdog_ref) {
+        lua_rawgeti(state, LUA_REGISTRYINDEX, watchdog_ref);
+        luaL_unref(state, LUA_REGISTRYINDEX, watchdog_ref);
+        std::lock_guard<std::mutex> lck(upd->mtx);
+        upd->shutdown.unlock();
+        watchdog_ref = 0;
+        lua_pop(state, 1);
+    }
+    return 0;
+}
+
+// Fake crash function for testing or if u hate ur server
+int crash(lua_State* state) {
+    printf("GCrash >> Fake crash initiated\n");
+    *((int*) NULL) = 0;
+    return 0;
+}
+
+extern "C" {
+    DLL_EXPORT int gmod13_open(lua_State* state) {
+        printf("\n-------------------------\n>> GCrash v0.4.3 - VRP <<\n-------------------------\n");
+
+        L = state;
+        watchdog_ref = 0;
+
+        upd = new watchdog_update{};
+        upd->last_call = std::chrono::system_clock::now();
+        upd->sleeping = false;
+
+        lua_newtable(state);
+        luaD_setcfunction(state, "startwatchdog", startwatchdog);
+        luaD_setcfunction(state, "stopwatchdog", stopwatchdog);
+        luaD_setcfunction(state, "destroywatchdog", destroywatchdog);
+        luaD_setcfunction(state, "crash", crash);
+        lua_setglobal(state, "gcrash");
+
+        return 0;
+    }
+
+    DLL_EXPORT int gmod13_close(lua_State* state) {
+        return destroywatchdog(state);
+    }
+}
